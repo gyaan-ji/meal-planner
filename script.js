@@ -183,6 +183,21 @@ function renderTodayProgress(stats, per){
         '</div>'+
       '</div>'+
     '</div>';
+
+  updateMiniProgress(stats, per, totalMeals);
+}
+
+function updateMiniProgress(stats, per, totalMeals){
+  var el = document.getElementById('miniProgress');
+  if(!el) return;
+  if(STATE.tab !== 'today'){
+    el.classList.remove('on');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.add('on');
+  var shortName = per.label;
+  el.innerHTML = '<span>'+shortName+' · '+stats.protein+'g protein · '+stats.calories+' kcal</span><span class="mini-muted">'+stats.count+'/'+totalMeals+' meals</span>';
 }
 
 
@@ -269,9 +284,8 @@ function renderToday(){
   var per = PERSONS[STATE.person];
   var pF = per.pFactor, cF = per.cFactor;
 
-  document.getElementById('dayName').textContent = DAYS[DAY_I];
-  document.getElementById('daySubtitle').textContent =
-    MONTHS[TODAY.getMonth()] + ' ' + TODAY.getDate() + ' · Week ' + WEEK_N + ' of ' + MONTHS[TODAY.getMonth()];
+  document.getElementById('dayName').textContent = DAYS[DAY_I].slice(0,3) + ' · ' + fmtDate(TODAY);
+  document.getElementById('daySubtitle').textContent = 'Today';
 
   // Low protein alert for Gyaan
   var alertHtml = '';
@@ -326,7 +340,7 @@ function renderToday(){
     : 'Tap Option 1 or 2 to calculate selected totals';
 
   document.getElementById('dayTotal').innerHTML =
-    '<div class="day-total">'+
+    '<div class="day-total '+(showSelected ? 'is-selected' : 'is-estimate')+'">'+
       '<div class="dt-label-top">'+(showSelected ? 'Selected Total' : 'Estimated Day Range')+'</div>'+
       '<div class="dt-block">'+
         '<div class="dt-top"><span class="dt-key">Protein</span><span class="dt-val">'+(showSelected ? selectedP+'g' : wMinP+'–'+wMaxP+'g')+'</span></div>'+
@@ -566,7 +580,6 @@ function setPerson(p, btn){
   saveState();
   document.querySelectorAll('.p-btn').forEach(function(b){ b.classList.remove('on'); });
   btn.classList.add('on');
-  updateStats();
   renderCurrent();
 }
 
@@ -612,27 +625,18 @@ function toggleCheck(key, el){
 
 function renderCurrent(){
   if(STATE.tab==='today') renderToday();
-  else if(STATE.tab==='week') renderWeek();
-  else renderShopping();
+  else { updateMiniProgress({protein:0, calories:0, count:0}, PERSONS[STATE.person], TODAY_D.meals.length); if(STATE.tab==='week') renderWeek(); else renderShopping(); }
 }
 
-function updateStats(){
-  var per = PERSONS[STATE.person];
-  document.getElementById('statsBar').innerHTML =
-    '<span class="s-chip pro">🥩 '+per.proMin+'–'+per.proMax+'g protein</span>'+
-    '<span class="s-chip cal">🔥 '+per.calMin+'–'+per.calMax+' kcal</span>'+
-    '<span class="s-note">'+per.note+'</span>';
-}
+function updateStats(){ /* Top stats removed in compact design. */ }
 
 /* ════════════════════════════════════
    INIT
 ════════════════════════════════════ */
 (function init(){
   loadState();
-  document.getElementById('weekChip').textContent = 'Week ' + WEEK_N + ' · ' + fmtDate(TODAY);
   document.querySelectorAll('.p-btn').forEach(function(b){
     b.classList.toggle('on', b.getAttribute('data-p') === STATE.person);
   });
-  updateStats();
   renderToday();
 })();

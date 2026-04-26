@@ -102,3 +102,18 @@ The extra icon concepts are stored in the repo for later design use:
 - `assets/logo-mark-plate.png`
 
 To change the active app icon later, replace `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, and `assets/logo-primary.png` with the new logo files.
+
+
+## Design Cleanup Update
+
+This version simplifies the mobile UI:
+
+- Removes the in-app logo/title header.
+- Removes the Week chip from the header.
+- Removes the top protein/calorie stat chips because the Today Progress card already shows them.
+- Makes the Gyaan/Mehak toggle compact and sticky.
+- Changes the Today heading to a compact date format such as `Mon · Apr 27`.
+- Adds a compact sticky progress strip while scrolling through meals.
+- Hides the large selected day total once meal selections exist, reducing duplicate progress information.
+
+Upload all files except `icon.svg` if you do not want to keep the old SVG source icon.

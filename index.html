@@ -18,22 +18,12 @@
 </head>
 <body>
 
-<header class="header">
-  <div class="header-row">
-    <div class="brand-wrap">
-      <img class="brand-logo" src="assets/logo-primary.png" alt="Meal Planner logo" />
-      <div class="brand">
-        Gyaan &amp; Mehak
-        <small>Meal Planner</small>
-      </div>
-    </div>
-    <div class="week-chip" id="weekChip">Week — · —</div>
-  </div>
-  <div class="toggle-track">
+<header class="header compact-header">
+  <div class="toggle-track compact-toggle">
     <button class="p-btn on" data-p="gyaan" onclick="setPerson('gyaan',this)">💪 Gyaan</button>
-    <button class="p-btn"    data-p="mehak" onclick="setPerson('mehak',this)">🌸 Mehak</button>
+    <button class="p-btn" data-p="mehak" onclick="setPerson('mehak',this)">🌸 Mehak</button>
   </div>
-  <div class="stats-bar" id="statsBar"></div>
+  <div class="mini-progress-strip" id="miniProgress" aria-live="polite"></div>
   <div class="header-line"></div>
 </header>
 
