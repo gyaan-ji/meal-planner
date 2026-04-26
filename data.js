@@ -1,3 +1,6 @@
+// Anchor date for smooth 28-day meal-plan rotation. Keep this as a Monday.
+const PLAN_START_DATE = '2026-04-27';
+
 /* ════════════════════════════════════
    PERSONS
 ════════════════════════════════════ */

@@ -9,20 +9,39 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const MSHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAYS   = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
-// Week of month: day 1-7=week1, 8-14=week2, 15-21=week3, 22-28=week4, 29+=week1
-function weekOfMonth(date) {
-  const w = Math.ceil(date.getDate() / 7);
-  return w > 4 ? 1 : w;
+// Smooth 28-day rotation anchored to PLAN_START_DATE in data.js.
+// This avoids jumping back to Week 1 in the middle of a calendar week.
+function parseLocalDate(dateStr) {
+  var parts = dateStr.split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
-// Day index: 0=Monday … 6=Sunday
+function startOfLocalDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function daysBetween(startDate, endDate) {
+  var msPerDay = 24 * 60 * 60 * 1000;
+  return Math.floor((startOfLocalDay(endDate) - startOfLocalDay(startDate)) / msPerDay);
+}
+
+function planPosition(date) {
+  var fallbackStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  var anchor = typeof PLAN_START_DATE === 'string' ? parseLocalDate(PLAN_START_DATE) : fallbackStart;
+  var diff = daysBetween(anchor, date);
+  var cycleDay = ((diff % 28) + 28) % 28;
+  return { week: Math.floor(cycleDay / 7) + 1, day: cycleDay % 7 };
+}
+
+// Calendar day index: 0=Monday … 6=Sunday. Used only for display helpers.
 function dayIndex(date) {
   const raw = date.getDay(); // 0=Sun, 1=Mon…6=Sat
   return raw === 0 ? 6 : raw - 1;
 }
 
-const WEEK_N  = weekOfMonth(TODAY);
-const DAY_I   = dayIndex(TODAY);
+const TODAY_POS = planPosition(TODAY);
+const WEEK_N  = TODAY_POS.week;
+const DAY_I   = TODAY_POS.day;
 const WEEK_K  = 'week' + WEEK_N;
 const WEEK_D  = PLAN[WEEK_K];
 const TODAY_D = WEEK_D.days[DAY_I];
@@ -30,16 +49,18 @@ const TODAY_D = WEEK_D.days[DAY_I];
 // Tomorrow
 const TOMORROW = new Date(TODAY);
 TOMORROW.setDate(TOMORROW.getDate() + 1);
-const TMR_WEEK_N = weekOfMonth(TOMORROW);
-const TMR_DAY_I  = dayIndex(TOMORROW);
+const TMR_POS = planPosition(TOMORROW);
+const TMR_WEEK_N = TMR_POS.week;
+const TMR_DAY_I  = TMR_POS.day;
 const TMR_WEEK_K = 'week' + TMR_WEEK_N;
 const TMR_D      = PLAN[TMR_WEEK_K].days[TMR_DAY_I];
 
 // Day after tomorrow
 const DAY2 = new Date(TODAY);
 DAY2.setDate(DAY2.getDate() + 2);
-const DAY2_WEEK_N = weekOfMonth(DAY2);
-const DAY2_DAY_I  = dayIndex(DAY2);
+const DAY2_POS = planPosition(DAY2);
+const DAY2_WEEK_N = DAY2_POS.week;
+const DAY2_DAY_I  = DAY2_POS.day;
 const DAY2_WEEK_K = 'week' + DAY2_WEEK_N;
 const DAY2_D      = PLAN[DAY2_WEEK_K].days[DAY2_DAY_I];
 
