@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meal-planner-v2-design-cleanup';
+const CACHE_NAME = 'meal-planner-v3-shop-tabs-fix';
 const APP_ASSETS = [
   './',
   './index.html',
