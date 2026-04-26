@@ -42,6 +42,21 @@
       margin-bottom: 14px;
     }
 
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      object-fit: cover;
+      box-shadow: 0 4px 16px rgba(27,58,45,0.12);
+      flex-shrink: 0;
+    }
+
     .brand {
       font-family: 'Fraunces', serif;
       font-size: 21px;

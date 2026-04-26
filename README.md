@@ -78,3 +78,27 @@ Do not put them inside a folder unless GitHub Pages is configured to use that fo
 - Shopping progress count
 - Hide completed shopping items
 - Reset shopping list
+
+
+## App Logo Assets
+
+The app now uses the fork/leaf logo as the main PWA/home-screen icon and header logo.
+
+### Active logo files
+
+- `icon-192.png` — PWA icon
+- `icon-512.png` — PWA icon
+- `apple-touch-icon.png` — iPhone/iPad home-screen icon
+- `favicon-32.png` and `favicon-16.png` — browser tab icons
+- `assets/logo-primary.png` — header logo and main source logo
+
+### Logo repository for future use
+
+The extra icon concepts are stored in the repo for later design use:
+
+- `assets/logo-secondary.png`
+- `assets/logo-mark-primary.png`
+- `assets/logo-mark-infinity.png`
+- `assets/logo-mark-plate.png`
+
+To change the active app icon later, replace `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, and `assets/logo-primary.png` with the new logo files.
