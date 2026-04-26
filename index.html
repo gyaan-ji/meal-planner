@@ -272,6 +272,37 @@
     .mac.p { background: rgba(26,122,70,0.1); color: var(--green); }
     .mac.c { background: rgba(217,107,0,0.1); color: var(--orange); }
 
+
+    .opt-row.selectable { cursor: pointer; position: relative; transition: background 0.15s, border-left 0.15s; }
+    .opt-row.selectable::before {
+      content: '';
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: all 0.15s;
+    }
+    .opt-row.selectable.selected { background: rgba(26,122,70,0.055); }
+    .opt-row.selectable.selected::before {
+      content: '✓';
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .selected-note {
+      font-size: 10px;
+      color: var(--green);
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
     /* ─── SNACK ─── */
     .snack-card {
       background: var(--card);
@@ -981,7 +1012,8 @@ const SHOP = {
 /* ════════════════════════════════════
    STATE & DATE DETECTION
 ════════════════════════════════════ */
-const STATE = { person:'gyaan', tab:'today', checked:new Set() };
+const STATE = { person:'gyaan', tab:'today', checked:new Set(), selected:{} };
+const LS_KEY = 'mealPlannerState_v1';
 
 const TODAY  = new Date();
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1042,6 +1074,48 @@ function weekRange(){
   return MSHORT[mon.getMonth()] + ' ' + mon.getDate() + '–' + sun.getDate();
 }
 
+
+/* ════════════════════════════════════
+   LOCAL STORAGE
+════════════════════════════════════ */
+function loadState(){
+  try {
+    var saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    if(saved.person && PERSONS[saved.person]) STATE.person = saved.person;
+    if(Array.isArray(saved.checked)) STATE.checked = new Set(saved.checked);
+    if(saved.selected && typeof saved.selected === 'object') STATE.selected = saved.selected;
+  } catch(e) {
+    console.warn('Could not load saved meal planner state', e);
+  }
+}
+
+function saveState(){
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      person: STATE.person,
+      checked: Array.from(STATE.checked),
+      selected: STATE.selected
+    }));
+  } catch(e) {
+    console.warn('Could not save meal planner state', e);
+  }
+}
+
+function mealKey(dateKey, mealIdx){
+  return STATE.person + '-' + dateKey + '-meal' + mealIdx;
+}
+
+function selectMealOption(dateKey, mealIdx, optIdx){
+  STATE.selected[mealKey(dateKey, mealIdx)] = optIdx;
+  saveState();
+  renderCurrent();
+}
+
+function getSelectedOption(dateKey, mealIdx){
+  var key = mealKey(dateKey, mealIdx);
+  return Object.prototype.hasOwnProperty.call(STATE.selected, key) ? STATE.selected[key] : null;
+}
+
 /* ════════════════════════════════════
    HELPERS
 ════════════════════════════════════ */
@@ -1088,19 +1162,24 @@ function getPortionHint(mealName, person){
   return parts.join(' · ');
 }
 
-function renderOptRow(opt, i, pF, cF, person){
+function renderOptRow(opt, i, pF, cF, person, dateKey, mealIdx){
   var portion = getPortionHint(opt.n, person);
   var query = encodeURIComponent(opt.n + ' recipe indian');
   var ytUrl = 'https://www.youtube.com/results?search_query=' + query;
-  return '<div class="opt-row">'+
+  var selectable = dateKey !== undefined && mealIdx !== undefined;
+  var selected = selectable && getSelectedOption(dateKey, mealIdx) === i;
+  var clickAttr = selectable ? ' onclick="selectMealOption(\''+dateKey+'\','+mealIdx+','+i+')"' : '';
+  var cls = 'opt-row' + (selectable ? ' selectable' : '') + (selected ? ' selected' : '');
+  return '<div class="'+cls+'"'+clickAttr+'>'+
     '<div style="flex:1">'+
       '<span class="opt-num">OPT '+(i+1)+'</span>'+
       '<div class="opt-name">'+opt.n+'</div>'+
       (portion ? '<div class="opt-portion">'+portion+'</div>' : '')+
+      (selected ? '<div class="selected-note">Selected for today</div>' : '')+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:7px;flex-shrink:0">'+
       '<div class="opt-macs">'+mac(Math.round(opt.p*pF), Math.round(opt.c*cF))+'</div>'+
-      '<a href="'+ytUrl+'" target="_blank" class="yt-btn">▶️</a>'+
+      '<a href="'+ytUrl+'" target="_blank" class="yt-btn" onclick="event.stopPropagation()">▶️</a>'+
     '</div>'+
   '</div>';
 }
@@ -1127,9 +1206,10 @@ function renderToday(){
   document.getElementById('alertBox').innerHTML = alertHtml;
 
   // Meals
-  var mealsHtml = TODAY_D.meals.map(function(meal){
+  var todayDateKey = WEEK_K + '-' + DAY_I;
+  var mealsHtml = TODAY_D.meals.map(function(meal, mealIdx){
     var optsHtml = meal.opts.map(function(opt, i){
-      return renderOptRow(opt, i, pF, cF, STATE.person);
+      return renderOptRow(opt, i, pF, cF, STATE.person, todayDateKey, mealIdx);
     }).join('');
     return '<div class="meal-card">'+
       '<div class="mc-hd"><span class="mc-emoji">'+meal.ic+'</span><span class="mc-title">'+meal.title+'</span><span class="mc-time">'+meal.time+'</span></div>'+
@@ -1148,27 +1228,42 @@ function renderToday(){
 
   // Day totals
   var r = dayRange(TODAY_D, pF, cF);
+  var selectedP = sk.pro, selectedC = sk.cal, selectedCount = 0;
+  TODAY_D.meals.forEach(function(meal, mealIdx){
+    var si = getSelectedOption(todayDateKey, mealIdx);
+    if(si !== null){
+      selectedCount++;
+      selectedP += Math.round(meal.opts[si].p*pF);
+      selectedC += Math.round(meal.opts[si].c*cF);
+    }
+  });
+
   var wMinP = r.minP + sk.pro, wMaxP = r.maxP + sk.pro;
   var wMinC = r.minC + sk.cal, wMaxC = r.maxC + sk.cal;
-  var midP = (wMinP+wMaxP)/2, midC = (wMinC+wMaxC)/2;
+  var showSelected = selectedCount > 0;
+  var displayP = showSelected ? selectedP : Math.round((wMinP+wMaxP)/2);
+  var displayC = showSelected ? selectedC : Math.round((wMinC+wMaxC)/2);
   var tgtMidP = (per.proMin+per.proMax)/2, tgtMidC = (per.calMin+per.calMax)/2;
-  var pPct = Math.min(100, Math.round(midP/tgtMidP*100));
-  var cPct = Math.min(100, Math.round(midC/tgtMidC*100));
+  var pPct = Math.min(100, Math.round(displayP/tgtMidP*100));
+  var cPct = Math.min(100, Math.round(displayC/tgtMidC*100));
+  var footerText = showSelected
+    ? 'Selected '+selectedCount+'/'+TODAY_D.meals.length+' meals · snack included'
+    : 'Tap Option 1 or 2 to calculate selected totals';
 
   document.getElementById('dayTotal').innerHTML =
     '<div class="day-total">'+
-      '<div class="dt-label-top">Day Range (incl. snack)</div>'+
+      '<div class="dt-label-top">'+(showSelected ? 'Selected Total' : 'Estimated Day Range')+'</div>'+
       '<div class="dt-block">'+
-        '<div class="dt-top"><span class="dt-key">Protein</span><span class="dt-val">'+wMinP+'–'+wMaxP+'g</span></div>'+
+        '<div class="dt-top"><span class="dt-key">Protein</span><span class="dt-val">'+(showSelected ? selectedP+'g' : wMinP+'–'+wMaxP+'g')+'</span></div>'+
         '<div class="dt-bar"><div class="dt-fill" style="width:'+pPct+'%"></div></div>'+
         '<div class="dt-sub">Target: '+per.proMin+'–'+per.proMax+'g</div>'+
       '</div>'+
       '<div class="dt-block">'+
-        '<div class="dt-top"><span class="dt-key">Calories</span><span class="dt-val">'+wMinC+'–'+wMaxC+'</span></div>'+
+        '<div class="dt-top"><span class="dt-key">Calories</span><span class="dt-val">'+(showSelected ? selectedC : wMinC+'–'+wMaxC)+'</span></div>'+
         '<div class="dt-bar"><div class="dt-fill" style="width:'+cPct+'%"></div></div>'+
         '<div class="dt-sub">Target: '+per.calMin+'–'+per.calMax+' kcal</div>'+
       '</div>'+
-      '<div class="dt-footer">Range = picking lowest vs highest option per meal</div>'+
+      '<div class="dt-footer">'+footerText+'</div>'+
     '</div>';
 
   // Tomorrow + Day2 section (5 PM+)
@@ -1343,6 +1438,7 @@ function renderDailyShop(){
 ════════════════════════════════════ */
 function setPerson(p, btn){
   STATE.person = p;
+  saveState();
   document.querySelectorAll('.p-btn').forEach(function(b){ b.classList.remove('on'); });
   btn.classList.add('on');
   updateStats();
@@ -1383,6 +1479,7 @@ function toggleCheck(key, el){
     el.classList.add('done');
     el.querySelector('.chk').textContent = '✓';
   }
+  saveState();
 }
 
 function renderCurrent(){
@@ -1403,7 +1500,11 @@ function updateStats(){
    INIT
 ════════════════════════════════════ */
 (function init(){
+  loadState();
   document.getElementById('weekChip').textContent = 'Week ' + WEEK_N + ' · ' + fmtDate(TODAY);
+  document.querySelectorAll('.p-btn').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-p') === STATE.person);
+  });
   updateStats();
   renderToday();
 })();
