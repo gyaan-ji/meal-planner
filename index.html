@@ -303,6 +303,101 @@
       margin-top: 4px;
     }
 
+
+
+    /* --- TODAY PROGRESS CARD --- */
+    .progress-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 15px;
+      margin-bottom: 12px;
+    }
+
+    .pc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .pc-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .pc-status {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .pc-pill {
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      background: var(--primary);
+      padding: 5px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .pc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .pc-metric {
+      background: rgba(27,58,45,0.035);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .pc-label {
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 5px;
+    }
+
+    .pc-value {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      line-height: 1;
+      color: var(--primary);
+    }
+
+    .pc-sub {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .pc-bar {
+      height: 5px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .pc-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--green);
+      transition: width 0.35s ease;
+    }
+
     /* ─── SNACK ─── */
     .snack-card {
       background: var(--card);
@@ -683,6 +778,7 @@
       <p id="daySubtitle">—</p>
     </div>
     <div id="alertBox"></div>
+    <div id="todayProgress"></div>
     <div id="todayMeals"></div>
     <div id="snackCard"></div>
     <div id="dayTotal"></div>
@@ -1116,6 +1212,55 @@ function getSelectedOption(dateKey, mealIdx){
   return Object.prototype.hasOwnProperty.call(STATE.selected, key) ? STATE.selected[key] : null;
 }
 
+
+function selectedTodayTotals(dayData, dateKey, pF, cF, snack){
+  var selectedP = snack.pro;
+  var selectedC = snack.cal;
+  var selectedCount = 0;
+  dayData.meals.forEach(function(meal, mealIdx){
+    var si = getSelectedOption(dateKey, mealIdx);
+    if(si !== null){
+      selectedCount++;
+      selectedP += Math.round(meal.opts[si].p*pF);
+      selectedC += Math.round(meal.opts[si].c*cF);
+    }
+  });
+  return {protein:selectedP, calories:selectedC, count:selectedCount};
+}
+
+function renderTodayProgress(stats, per){
+  var totalMeals = TODAY_D.meals.length;
+  var pPct = Math.min(100, Math.round(stats.protein / per.proMin * 100));
+  var cPct = Math.min(100, Math.round(stats.calories / per.calMin * 100));
+  var proteinGap = Math.max(0, per.proMin - stats.protein);
+  var status = stats.count === 0
+    ? 'Select your meal options to start tracking today.'
+    : (proteinGap > 0 ? proteinGap + 'g protein left to hit minimum target.' : 'Protein target reached for today.');
+
+  document.getElementById('todayProgress').innerHTML =
+    '<div class="progress-card">'+
+      '<div class="pc-top">'+
+        '<div><div class="pc-title">Today Progress</div><div class="pc-status">'+status+'</div></div>'+
+        '<div class="pc-pill">'+stats.count+'/'+totalMeals+' meals</div>'+
+      '</div>'+
+      '<div class="pc-grid">'+
+        '<div class="pc-metric">'+
+          '<div class="pc-label">Protein</div>'+
+          '<div class="pc-value">'+stats.protein+'g</div>'+
+          '<div class="pc-sub">Goal '+per.proMin+'–'+per.proMax+'g</div>'+
+          '<div class="pc-bar"><div class="pc-fill" style="width:'+pPct+'%"></div></div>'+
+        '</div>'+
+        '<div class="pc-metric">'+
+          '<div class="pc-label">Calories</div>'+
+          '<div class="pc-value">'+stats.calories+'</div>'+
+          '<div class="pc-sub">Goal '+per.calMin+'–'+per.calMax+' kcal</div>'+
+          '<div class="pc-bar"><div class="pc-fill" style="width:'+cPct+'%"></div></div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+}
+
+
 /* ════════════════════════════════════
    HELPERS
 ════════════════════════════════════ */
@@ -1205,8 +1350,11 @@ function renderToday(){
   }
   document.getElementById('alertBox').innerHTML = alertHtml;
 
-  // Meals
   var todayDateKey = WEEK_K + '-' + DAY_I;
+  var progressStats = selectedTodayTotals(TODAY_D, todayDateKey, pF, cF, per.snack);
+  renderTodayProgress(progressStats, per);
+
+  // Meals
   var mealsHtml = TODAY_D.meals.map(function(meal, mealIdx){
     var optsHtml = meal.opts.map(function(opt, i){
       return renderOptRow(opt, i, pF, cF, STATE.person, todayDateKey, mealIdx);
@@ -1228,15 +1376,9 @@ function renderToday(){
 
   // Day totals
   var r = dayRange(TODAY_D, pF, cF);
-  var selectedP = sk.pro, selectedC = sk.cal, selectedCount = 0;
-  TODAY_D.meals.forEach(function(meal, mealIdx){
-    var si = getSelectedOption(todayDateKey, mealIdx);
-    if(si !== null){
-      selectedCount++;
-      selectedP += Math.round(meal.opts[si].p*pF);
-      selectedC += Math.round(meal.opts[si].c*cF);
-    }
-  });
+  var selectedP = progressStats.protein;
+  var selectedC = progressStats.calories;
+  var selectedCount = progressStats.count;
 
   var wMinP = r.minP + sk.pro, wMaxP = r.maxP + sk.pro;
   var wMinC = r.minC + sk.cal, wMaxC = r.maxC + sk.cal;
